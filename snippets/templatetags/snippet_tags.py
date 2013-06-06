@@ -28,34 +28,34 @@ def snippet(context, name, allow_delete=True):
     return context
 
 
-@register.tag
-def snippet_complex(parser, token):
-    chunks = token.split_contents()
-    print chunks
-    name = chunks[1].strip("'")
-    return SnippetNode(name)
+# @register.tag
+# def snippet_complex(parser, token):
+#     chunks = token.split_contents()
+#     print chunks
+#     name = chunks[1].strip("'")
+#     return SnippetNode(name)
 
-class SnippetNode(template.Node):
+# class SnippetNode(template.Node):
 
-    def __init__(self, name):
-        slug = template.defaultfilters.slugify(name)
-        try:
-            snippet, created = Snippet.objects.get_or_create(title=slug)
-        except Snippet.MultipleObjectsReturned:
-            snippet = Snippet.objects.filter(title=slug).latest('pk')
-            created = False
+#     def __init__(self, name):
+#         slug = template.defaultfilters.slugify(name)
+#         try:
+#             snippet, created = Snippet.objects.get_or_create(title=slug)
+#         except Snippet.MultipleObjectsReturned:
+#             snippet = Snippet.objects.filter(title=slug).latest('pk')
+#             created = False
 
-        if created:
-            snippet.title = slug
-            snippet.description = name
-            snippet.body = "[{0}]".format(name)
-            snippet.save()
-        self.snippet = snippet
+#         if created:
+#             snippet.title = slug
+#             snippet.description = name
+#             snippet.body = "[{0}]".format(name)
+#             snippet.save()
+#         self.snippet = snippet
 
-    def render(self, context):
-        return render_to_string("snippets/snippet.html", {
-            'snippet': self.snippet,
-        }, context)
+#     def render(self, context):
+#         return render_to_string("snippets/snippet.html", {
+#             'snippet': self.snippet,
+#         }, context)
 
 
 # @register.simple_tag
