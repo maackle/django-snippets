@@ -4,7 +4,7 @@ from django import template
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from snippets.models import Snippet
+from snippets.models import Snippet, SnippetImage
 
 register = template.Library()
 
@@ -22,6 +22,22 @@ def snippet(context, name, allow_delete=True):
         snippet.title = slug
         snippet.description = name
         snippet.body = "[{0}]".format(name)
+        snippet.save()
+
+    context['snippet'] = snippet
+    return context
+
+@register.inclusion_tag('snippets/snippet_image.html', takes_context=True)
+def snippet_image(context, name, allow_delete=True):
+    slug = template.defaultfilters.slugify(name)
+    try:
+        snippet, created = SnippetImage.objects.get_or_create(title=slug)
+    except Snippet.MultipleObjectsReturned:
+        snippet = Snippet.objects.filter(title=slug).latest('pk')
+        created = False
+
+    if created:
+        snippet.title = slug
         snippet.save()
 
     context['snippet'] = snippet
