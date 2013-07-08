@@ -1,9 +1,12 @@
 from django.db import models
 
+from sorl.thumbnail import ImageField
+from markupfield.fields import MarkupField
+
 class Snippet(models.Model):
     title = models.CharField(max_length=128, unique=True)
     description = models.CharField(max_length=200, default="")
-    body = models.TextField(default="")
+    body = MarkupField(default="", default_markup_type='markdown')
 
     def __unicode__(self):
         return "Snippet '%s'" % (self.title,)
@@ -11,7 +14,7 @@ class Snippet(models.Model):
 
 class SnippetImage(models.Model):
     title = models.CharField(max_length=128, unique=True)
-    image = models.ImageField(upload_to='snippets', null=True)
+    image = ImageField(upload_to='snippets', null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
     link = models.CharField(max_length=256, blank=True, null=True)
