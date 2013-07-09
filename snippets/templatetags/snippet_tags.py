@@ -1,4 +1,5 @@
 from markdown import markdown
+import re
 
 from django import template
 from django.conf import settings
@@ -9,23 +10,54 @@ from snippets.models import Snippet, SnippetImage
 register = template.Library()
 
 
-@register.inclusion_tag('snippets/snippet.html', takes_context=True)
-def snippet(context, name, allow_delete=True):
-    slug = template.defaultfilters.slugify(name)
-    try:
-        snippet, created = Snippet.objects.get_or_create(title=slug)
-    except Snippet.MultipleObjectsReturned:
-        snippet = Snippet.objects.filter(title=slug).latest('pk')
-        created = False
+@register.tag
+def snippet(parser, token):
+    chunks = token.split_contents()
+    name = chunks[1].strip("'\"")
+    keys = ('markup', 'content')
+    params = {}
+    for chunk in chunks[2:]:
+        match = re.match(r"(\w+)=(.*)", chunk)
+        if match:
+            key = match.group(1)
+            val = match.group(2)
+            if key in keys:
+                params[key] = val.strip("'\"")
+    if 'content' in params.keys():
+        nodelist = None
+    else:
+        nodelist = parser.parse(('endsnippet',))
+        parser.delete_first_token()
 
-    if created:
-        snippet.title = slug
-        snippet.description = name
-        snippet.body = "[{0}]".format(name)
-        snippet.save()
+    return SnippetNode(name, params, nodelist)
 
-    context['snippet'] = snippet
-    return context
+class SnippetNode(template.Node):
+
+    def __init__(self, name, params, nodelist):
+        self.nodelist = nodelist
+        self.name = name
+        self.params = params
+
+    def render(self, context):
+        slug = template.defaultfilters.slugify(self.name)
+
+        try:
+            snippet, created = Snippet.objects.get_or_create(title=slug)
+        except Snippet.MultipleObjectsReturned:
+            snippet = Snippet.objects.filter(title=slug).latest('pk')
+            created = False
+
+        if created:
+            snippet.title = slug
+            snippet.description = self.name
+            snippet.body = self.params.get('content') or self.nodelist.render(context)
+            snippet.body_markup_type = self.params.get('markup') or 'markdown'
+            snippet.save()
+
+        return render_to_string("snippets/snippet.html", {
+            'snippet': snippet,
+        }, context)
+
 
 @register.inclusion_tag('snippets/snippet_image.html', takes_context=True)
 def snippet_image(context, name, allow_delete=True):
@@ -44,52 +76,20 @@ def snippet_image(context, name, allow_delete=True):
     return context
 
 
-# @register.tag
-# def snippet_complex(parser, token):
-#     chunks = token.split_contents()
-#     print chunks
-#     name = chunks[1].strip("'")
-#     return SnippetNode(name)
+@register.inclusion_tag('snippets/snippet.html', takes_context=True)
+def snippet_simple(context, name, allow_delete=True):
+    slug = template.defaultfilters.slugify(name)
+    try:
+        snippet, created = Snippet.objects.get_or_create(title=slug)
+    except Snippet.MultipleObjectsReturned:
+        snippet = Snippet.objects.filter(title=slug).latest('pk')
+        created = False
 
-# class SnippetNode(template.Node):
+    if created:
+        snippet.title = slug
+        snippet.description = name
+        snippet.body = "[{0}]".format(name)
+        snippet.save()
 
-#     def __init__(self, name):
-#         slug = template.defaultfilters.slugify(name)
-#         try:
-#             snippet, created = Snippet.objects.get_or_create(title=slug)
-#         except Snippet.MultipleObjectsReturned:
-#             snippet = Snippet.objects.filter(title=slug).latest('pk')
-#             created = False
-
-#         if created:
-#             snippet.title = slug
-#             snippet.description = name
-#             snippet.body = "[{0}]".format(name)
-#             snippet.save()
-#         self.snippet = snippet
-
-#     def render(self, context):
-#         return render_to_string("snippets/snippet.html", {
-#             'snippet': self.snippet,
-#         }, context)
-
-
-# @register.simple_tag
-# def snippet_old(name):
-
-#     slug = template.defaultfilters.slugify(name)
-#     try:
-#         snippet, created = Snippet.objects.get_or_create(title=slug)
-#     except Snippet.MultipleObjectsReturned:
-#         snippet = Snippet.objects.filter(title=slug).latest('pk')
-#         created = False
-
-#     if created:
-#         snippet.title = slug
-#         snippet.description = name
-#         snippet.body = "[{0}]".format(name)
-#         snippet.save()
-
-#     return render_to_string('snippets/snippet.html', {
-#         'snippet': snippet,
-#     })
+    context['snippet'] = snippet
+    return context
