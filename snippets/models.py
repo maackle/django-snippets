@@ -27,6 +27,17 @@ class SnippetImage(models.Model):
             return 'inherit'
 
     @property
+    def dimensions(self):
+        if self.width and self.height:
+            return "{0}x{1}".format(self.width, self.height)
+        elif self.width:
+            return "{0}".format(self.width)
+        elif self.height:
+            return "x{0}".format(self.height)
+        else:
+            return ""
+
+    @property
     def height_css(self):
         if self.height is not None:
             return str(self.height) + 'px'
